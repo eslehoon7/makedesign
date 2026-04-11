@@ -6,16 +6,16 @@ import { getFirestore } from 'firebase/firestore';
 const localConfigModule = import.meta.glob('../firebase-applet-config.json', { eager: true });
 const localConfig = localConfigModule['../firebase-applet-config.json'] as any;
 
-const firebaseConfig = localConfig?.default || {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "missing-api-key",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "missing-auth-domain",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "missing-project-id",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "missing-storage-bucket",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "missing-sender-id",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "missing-app-id",
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || localConfig?.default?.apiKey || "missing-api-key",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || localConfig?.default?.authDomain || "missing-auth-domain",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || localConfig?.default?.projectId || "missing-project-id",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || localConfig?.default?.storageBucket || "missing-storage-bucket",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || localConfig?.default?.messagingSenderId || "missing-sender-id",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || localConfig?.default?.appId || "missing-app-id",
 };
 
-const databaseId = localConfig?.default?.firestoreDatabaseId || import.meta.env.VITE_FIRESTORE_DATABASE_ID || '(default)';
+const databaseId = import.meta.env.VITE_FIRESTORE_DATABASE_ID || localConfig?.default?.firestoreDatabaseId || '(default)';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
