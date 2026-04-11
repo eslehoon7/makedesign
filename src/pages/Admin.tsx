@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PortfolioItem } from '../store';
 import { Trash2, Plus, Image as ImageIcon, Save, LogOut, Edit2, X } from 'lucide-react';
 import { auth, db } from '../firebase';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
 
 export default function Admin() {
@@ -84,10 +84,23 @@ export default function Admin() {
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setError('');
     } catch (err: any) {
-      if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-        setError('아이디 또는 비밀번호가 올바르지 않거나, Firebase 계정 설정이 필요합니다.');
+      // If the account doesn't exist yet, try to create it automatically
+      if ((err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') && loginEmail === 'admin@makedesign.com') {
+        try {
+          await createUserWithEmailAndPassword(auth, loginEmail, loginPassword);
+          setError('');
+          return;
+        } catch (createErr: any) {
+          if (createErr.code === 'auth/operation-not-allowed') {
+            setError('Firebase 콘솔에서 [이메일/비밀번호] 로그인 제공업체를 사용 설정해주세요.');
+          } else {
+            setError('계정 자동 생성에 실패했습니다: ' + createErr.message);
+          }
+        }
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Firebase 콘솔에서 [이메일/비밀번호] 로그인 제공업체를 사용 설정해주세요.');
       } else {
-        setError('로그인에 실패했습니다. 설정을 확인해주세요.');
+        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
       }
     }
   };
