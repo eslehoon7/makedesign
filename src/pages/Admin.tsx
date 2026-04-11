@@ -84,6 +84,7 @@ export default function Admin() {
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setError('');
     } catch (err: any) {
+      console.error("Login error:", err);
       // If the account doesn't exist yet, try to create it automatically
       if ((err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') && loginEmail === 'admin@makedesign.com') {
         try {
@@ -91,16 +92,21 @@ export default function Admin() {
           setError('');
           return;
         } catch (createErr: any) {
+          console.error("Create error:", createErr);
           if (createErr.code === 'auth/operation-not-allowed') {
             setError('Firebase 콘솔에서 [이메일/비밀번호] 로그인 제공업체를 사용 설정해주세요.');
+          } else if (createErr.code === 'auth/email-already-in-use') {
+            setError('비밀번호가 올바르지 않습니다.');
           } else {
-            setError('계정 자동 생성에 실패했습니다: ' + createErr.message);
+            setError(`계정 생성 오류: ${createErr.code}`);
           }
         }
       } else if (err.code === 'auth/operation-not-allowed') {
         setError('Firebase 콘솔에서 [이메일/비밀번호] 로그인 제공업체를 사용 설정해주세요.');
+      } else if (err.code === 'auth/invalid-api-key' || err.message.includes('missing-api-key') || err.message.includes('API key')) {
+        setError('Netlify 환경 변수(API 키)가 설정되지 않았거나 잘못되었습니다.');
       } else {
-        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+        setError(`로그인 실패 (${err.code || '알 수 없는 오류'}): 아이디와 비밀번호를 확인해주세요.`);
       }
     }
   };
