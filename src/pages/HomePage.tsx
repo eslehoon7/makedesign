@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Menu, X, ChevronRight, ChevronDown, ChevronUp, Phone, Mail, MapPin, Instagram, Facebook, PhoneCall, Ruler, PenTool, FileText, Hammer, Wrench, Palette, Calculator, Award, Clock, Sparkles, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getHeroImages, getPortfolioItems, PortfolioItem } from '../store';
+import { PortfolioItem } from '../store';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -95,7 +97,11 @@ const Hero = () => {
   const [heroImages, setHeroImages] = useState<string[]>([]);
 
   useEffect(() => {
-    setHeroImages(getHeroImages());
+    const unsubscribe = onSnapshot(query(collection(db, 'heroImages'), orderBy('order')), (snapshot) => {
+      const images = snapshot.docs.map(doc => doc.data().image as string);
+      setHeroImages(images);
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -274,7 +280,11 @@ const Portfolio = () => {
   const [visibleCount, setVisibleCount] = useState(6);
 
   useEffect(() => {
-    setProjects(getPortfolioItems());
+    const unsubscribe = onSnapshot(query(collection(db, 'portfolioItems'), orderBy('createdAt', 'desc')), (snapshot) => {
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      setProjects(items);
+    });
+    return () => unsubscribe();
   }, []);
 
   const visibleProjects = projects.slice(0, visibleCount);
@@ -315,10 +325,10 @@ const Portfolio = () => {
                   referrerPolicy="no-referrer"
                 />
               </div>
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-center items-center text-white">
+              <div className="absolute inset-0 bg-black/60 opacity-100 group-hover:opacity-0 transition-opacity duration-300 flex flex-col justify-center items-center text-white">
                 <span className="text-sm font-medium tracking-widest mb-2">{project.category}</span>
                 <h3 className="text-xl font-bold">{project.title}</h3>
-                <span className="mt-4 px-4 py-2 border border-white text-xs tracking-widest hover:bg-white hover:text-black transition-colors">VIEW DETAILS</span>
+                <span className="mt-4 px-4 py-2 border border-white text-xs tracking-widest transition-colors">VIEW DETAILS</span>
               </div>
             </motion.div>
           ))}

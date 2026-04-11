@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getHeroImages, setHeroImages, getPortfolioItems, setPortfolioItems, PortfolioItem } from '../store';
+import { PortfolioItem } from '../store';
 import { Trash2, Plus, Image as ImageIcon, Save, LogOut, Edit2, X } from 'lucide-react';
+import { auth, db } from '../firebase';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
 
 export default function Admin() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -12,7 +16,7 @@ export default function Admin() {
 
   // Dashboard State
   const [activeTab, setActiveTab] = useState<'hero' | 'portfolio'>('hero');
-  const [heroImages, setHeroImagesState] = useState<string[]>([]);
+  const [heroImages, setHeroImagesState] = useState<{id: string, image: string, order: number}[]>([]);
   const [portfolioItems, setPortfolioItemsState] = useState<PortfolioItem[]>([]);
 
   // New/Edit Portfolio Item State
@@ -22,34 +26,79 @@ export default function Admin() {
   });
 
   useEffect(() => {
-    const auth = sessionStorage.getItem('adminAuth');
-    if (auth === 'true') {
-      setIsLoggedIn(true);
-      loadData();
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsLoggedIn(true);
+        if (user.email === 'eslehoon7@gmail.com' || user.email === 'admin@makedesign.com') {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+          setError('관리자 권한이 없습니다.');
+        }
+      } else {
+        setIsLoggedIn(false);
+        setIsAdmin(false);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
-  const loadData = () => {
-    setHeroImagesState(getHeroImages());
-    setPortfolioItemsState(getPortfolioItems());
-  };
+  useEffect(() => {
+    if (!isAdmin) return;
 
-  const handleLogin = (e: React.FormEvent) => {
+    const heroUnsubscribe = onSnapshot(query(collection(db, 'heroImages'), orderBy('order')), (snapshot) => {
+      const images = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      setHeroImagesState(images);
+    }, (err) => {
+      console.error('Firestore Error: ', err);
+      setError('데이터를 불러오는 중 오류가 발생했습니다.');
+    });
+
+    const portfolioUnsubscribe = onSnapshot(query(collection(db, 'portfolioItems'), orderBy('createdAt', 'desc')), (snapshot) => {
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      setPortfolioItemsState(items);
+    }, (err) => {
+      console.error('Firestore Error: ', err);
+      setError('데이터를 불러오는 중 오류가 발생했습니다.');
+    });
+
+    return () => {
+      heroUnsubscribe();
+      portfolioUnsubscribe();
+    };
+  }, [isAdmin]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    let loginEmail = username;
+    let loginPassword = password;
+
+    // Map the custom ID/PW to the Firebase account
     if (username === 'makedesign' && password === '3014') {
-      setIsLoggedIn(true);
-      sessionStorage.setItem('adminAuth', 'true');
-      loadData();
+      loginEmail = 'admin@makedesign.com';
+      loginPassword = 'admin3014';
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setError('');
-    } else {
-      setError('아이디 또는 비밀번호가 올바르지 않습니다.');
+    } catch (err: any) {
+      if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        setError('아이디 또는 비밀번호가 올바르지 않거나, Firebase 계정 설정이 필요합니다.');
+      } else {
+        setError('로그인에 실패했습니다. 설정을 확인해주세요.');
+      }
     }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    sessionStorage.removeItem('adminAuth');
-    navigate('/');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (base64: string) => void) => {
@@ -63,8 +112,8 @@ export default function Admin() {
           let width = img.width;
           let height = img.height;
           
-          const MAX_WIDTH = 1200;
-          const MAX_HEIGHT = 1200;
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
           
           if (width > height) {
             if (width > MAX_WIDTH) {
@@ -83,7 +132,7 @@ export default function Admin() {
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
           callback(dataUrl);
         };
         img.src = reader.result as string;
@@ -93,34 +142,32 @@ export default function Admin() {
   };
 
   // Hero Image Handlers
-  const addHeroImage = (base64: string) => {
-    const updated = [...heroImages, base64];
+  const addHeroImage = async (base64: string) => {
     try {
-      setHeroImages(updated);
-      setHeroImagesState(updated);
+      const newRef = doc(collection(db, 'heroImages'));
+      await setDoc(newRef, {
+        image: base64,
+        order: heroImages.length,
+        createdAt: serverTimestamp()
+      });
     } catch (e: any) {
       setError(e.message || '저장 중 오류가 발생했습니다.');
       setTimeout(() => setError(''), 3000);
     }
   };
 
-  const removeHeroImage = (index: number) => {
-    const updated = heroImages.filter((_, i) => i !== index);
+  const removeHeroImage = async (id: string) => {
     try {
-      setHeroImages(updated);
-      setHeroImagesState(updated);
+      await deleteDoc(doc(db, 'heroImages', id));
     } catch (e: any) {
-      setError(e.message || '저장 중 오류가 발생했습니다.');
+      setError(e.message || '삭제 중 오류가 발생했습니다.');
       setTimeout(() => setError(''), 3000);
     }
   };
 
-  const updateHeroImage = (index: number, base64: string) => {
-    const updated = [...heroImages];
-    updated[index] = base64;
+  const updateHeroImage = async (id: string, base64: string) => {
     try {
-      setHeroImages(updated);
-      setHeroImagesState(updated);
+      await setDoc(doc(db, 'heroImages', id), { image: base64 }, { merge: true });
     } catch (e: any) {
       setError(e.message || '저장 중 오류가 발생했습니다.');
       setTimeout(() => setError(''), 3000);
@@ -128,32 +175,24 @@ export default function Admin() {
   };
 
   // Portfolio Handlers
-  const savePortfolioItem = () => {
+  const savePortfolioItem = async () => {
     if (!newPortfolio.title || !newPortfolio.image) {
       setError('제목과 메인 이미지는 필수입니다.');
       setTimeout(() => setError(''), 3000);
       return;
     }
     
-    const item: PortfolioItem = {
-      id: editingId || Date.now().toString(),
-      title: newPortfolio.title || '',
-      category: newPortfolio.category || '',
-      description: newPortfolio.description || '',
-      image: newPortfolio.image || '',
-      gallery: newPortfolio.gallery || []
-    };
-
-    let updated;
-    if (editingId) {
-      updated = portfolioItems.map(p => p.id === editingId ? item : p);
-    } else {
-      updated = [item, ...portfolioItems];
-    }
-    
     try {
-      setPortfolioItems(updated);
-      setPortfolioItemsState(updated);
+      const docRef = editingId ? doc(db, 'portfolioItems', editingId) : doc(collection(db, 'portfolioItems'));
+      await setDoc(docRef, {
+        title: newPortfolio.title || '',
+        category: newPortfolio.category || '',
+        description: newPortfolio.description || '',
+        image: newPortfolio.image || '',
+        gallery: newPortfolio.gallery || [],
+        createdAt: editingId ? undefined : serverTimestamp() // Only set createdAt on new items, or use merge
+      }, { merge: true });
+      
       resetPortfolioForm();
     } catch (e: any) {
       setError(e.message || '저장 중 오류가 발생했습니다.');
@@ -178,12 +217,9 @@ export default function Admin() {
     setNewPortfolio({ title: '', category: '', description: '', image: '', gallery: [] });
   };
 
-  const removePortfolioItem = (id: string) => {
-    // Removed window.confirm due to iframe restrictions
-    const updated = portfolioItems.filter(item => item.id !== id);
+  const removePortfolioItem = async (id: string) => {
     try {
-      setPortfolioItems(updated);
-      setPortfolioItemsState(updated);
+      await deleteDoc(doc(db, 'portfolioItems', id));
       if (editingId === id) {
         resetPortfolioForm();
       }
@@ -193,7 +229,7 @@ export default function Admin() {
     }
   };
 
-  if (!isLoggedIn) {
+  if (!isLoggedIn || !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">

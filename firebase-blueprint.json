@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "HeroImage": {
+      "title": "HeroImage",
+      "description": "A hero image for the main slider.",
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Base64 encoded image or URL"
+        },
+        "order": {
+          "type": "number",
+          "description": "Order of the image in the slider"
+        },
+        "createdAt": {
+          "type": "timestamp",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["image", "order", "createdAt"]
+    },
+    "PortfolioItem": {
+      "title": "PortfolioItem",
+      "description": "A portfolio project item.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the project"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the project"
+        },
+        "image": {
+          "type": "string",
+          "description": "Main image (Base64 or URL)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the project"
+        },
+        "gallery": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional images"
+        },
+        "createdAt": {
+          "type": "timestamp",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["title", "category", "image", "description", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/heroImages/{imageId}": {
+      "schema": { "$ref": "#/entities/HeroImage" },
+      "description": "Collection of hero images"
+    },
+    "/portfolioItems/{itemId}": {
+      "schema": { "$ref": "#/entities/PortfolioItem" },
+      "description": "Collection of portfolio items"
+    }
+  }
+}

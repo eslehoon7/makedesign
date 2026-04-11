@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getPortfolioItems, PortfolioItem } from '../store';
+import { PortfolioItem } from '../store';
 import { ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function PortfolioDetail() {
   const { id } = useParams<{ id: string }>();
@@ -10,11 +12,19 @@ export default function PortfolioDetail() {
   const [item, setItem] = useState<PortfolioItem | null>(null);
 
   useEffect(() => {
-    const items = getPortfolioItems();
-    const found = items.find(p => p.id === id);
-    if (found) {
-      setItem(found);
-    }
+    const fetchItem = async () => {
+      if (!id) return;
+      try {
+        const docRef = doc(db, 'portfolioItems', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setItem({ id: docSnap.id, ...docSnap.data() } as PortfolioItem);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchItem();
   }, [id]);
 
   if (!item) {

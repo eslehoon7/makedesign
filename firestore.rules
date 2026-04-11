@@ -1,0 +1,91 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: heroImages
+    // Document ID: auto-generated
+    // Fields:
+    //   - image: string (required) - Base64 encoded image or URL
+    //   - order: number (required) - Order of the image
+    //   - createdAt: timestamp (required) - Creation timestamp
+    //
+    // Collection: portfolioItems
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required)
+    //   - category: string (required)
+    //   - image: string (required)
+    //   - description: string (required)
+    //   - gallery: list (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (request.auth.token.email == "eslehoon7@gmail.com" && request.auth.token.email_verified == true) ||
+        (request.auth.token.email == "admin@makedesign.com")
+      );
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function isValidHeroImage(data) {
+      return hasOnlyAllowedFields(['image', 'order', 'createdAt']) &&
+             hasRequiredFields(['image', 'order', 'createdAt']) &&
+             data.image is string && data.image.size() > 0 && data.image.size() < 1000000 &&
+             data.order is number &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidPortfolioItem(data) {
+      let allowedFields = ['title', 'category', 'image', 'description', 'gallery', 'createdAt'];
+      let requiredFields = ['title', 'category', 'image', 'description', 'createdAt'];
+      
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(requiredFields) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.category is string && data.category.size() > 0 && data.category.size() < 100 &&
+             data.image is string && data.image.size() > 0 && data.image.size() < 1000000 &&
+             data.description is string && data.description.size() < 5000 &&
+             (!('gallery' in data) || (data.gallery is list && data.gallery.size() <= 20)) &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /heroImages/{imageId} {
+      allow read: if true; // Publicly readable for homepage
+      allow create: if isAdmin() && isValidHeroImage(request.resource.data);
+      allow update: if isAdmin() && isValidHeroImage(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /portfolioItems/{itemId} {
+      allow read: if true; // Publicly readable for homepage
+      allow create: if isAdmin() && isValidPortfolioItem(request.resource.data);
+      allow update: if isAdmin() && isValidPortfolioItem(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
