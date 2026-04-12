@@ -319,15 +319,15 @@ export default function Admin() {
             {error && <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">{error}</div>}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mb-6">
               {heroImages.map((img, index) => (
-                <div key={index} className="relative group rounded-lg overflow-hidden border border-gray-200">
-                  <img src={img} alt={`Hero ${index}`} className="w-full h-48 object-cover" />
+                <div key={img.id} className="relative group rounded-lg overflow-hidden border border-gray-200">
+                  <img src={img.image} alt={`Hero ${index}`} className="w-full h-48 object-cover" />
                   <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <label className="p-2 bg-blue-600 text-white rounded-full cursor-pointer hover:bg-blue-700">
                       <Edit2 size={16} />
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (base64) => updateHeroImage(index, base64))} />
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, (base64) => updateHeroImage(img.id, base64))} />
                     </label>
                     <button
-                      onClick={() => removeHeroImage(index)}
+                      onClick={() => removeHeroImage(img.id)}
                       className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700"
                     >
                       <Trash2 size={16} />
