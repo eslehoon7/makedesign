@@ -120,7 +120,7 @@ const Hero = () => {
             key={img + index}
             src={img}
             alt={`Luxury Interior ${index + 1}`}
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover blur-[3px] scale-105"
             referrerPolicy="no-referrer"
             initial={{ opacity: index === 0 ? 1 : 0 }}
             animate={{ opacity: currentImageIndex === index ? 1 : 0 }}
