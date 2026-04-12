@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PortfolioItem } from '../store';
 import { Trash2, Plus, Image as ImageIcon, Save, LogOut, Edit2, X } from 'lucide-react';
 import { auth, db } from '../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, setPersistence, browserSessionPersistence } from 'firebase/auth';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
 
 export default function Admin() {
@@ -81,6 +81,7 @@ export default function Admin() {
     }
 
     try {
+      await setPersistence(auth, browserSessionPersistence);
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setError('');
     } catch (err: any) {
