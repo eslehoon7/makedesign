@@ -117,8 +117,9 @@ export default function Admin() {
           let width = img.width;
           let height = img.height;
           
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
+          // 해상도를 1920으로 대폭 상향 (기존 800)
+          const MAX_WIDTH = 1920;
+          const MAX_HEIGHT = 1920;
           
           if (width > height) {
             if (width > MAX_WIDTH) {
@@ -137,7 +138,17 @@ export default function Admin() {
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          // 화질을 0.85로 상향하고, 압축률이 좋은 webp 포맷 사용 (기존 jpeg 0.6)
+          const dataUrl = canvas.toDataURL('image/webp', 0.85);
+          
+          // Firestore 1MB 제한 체크 (대략적인 base64 크기 계산)
+          const sizeInBytes = Math.round((dataUrl.length * 3) / 4);
+          if (sizeInBytes > 900000) { // 900KB 이상일 경우
+            setError('이미지 용량이 너무 큽니다. 조금 더 작은 이미지를 사용해주세요.');
+            setTimeout(() => setError(''), 4000);
+            return;
+          }
+          
           callback(dataUrl);
         };
         img.src = reader.result as string;
